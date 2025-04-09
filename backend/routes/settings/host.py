@@ -106,3 +106,53 @@ def list_storage_host():
             "error": "Failed to connect to XenAPI or fetch SRs",
             "details": str(e)
         }), 502
+    
+@host_bp.route('/hosts/update/<int:host_id>', methods=['PATCH'])
+def update_host(host_id):
+    data = request.get_json()
+    host = Host.query.get(host_id)
+
+    if not host:
+        return jsonify({"error": f"No host found with ID {host_id}"}), 404
+
+    updatable_fields = ['name' ,'host_ip','username', 'password']
+    for field in updatable_fields:
+        if field in data:
+            setattr(host, field, data[field])
+
+    try:
+        db.session.commit()
+        return jsonify({
+            "message": "Host updated successfully.",
+            "host": {
+                "id": host.id,
+                "name": host.name,
+                "host_ip": host.host_ip,
+                "username": host.username
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to update host.",
+            "details": str(e)
+        }), 500
+
+
+@host_bp.route('/hosts/delete/<int:host_id>', methods=['DELETE'])
+def delete_host(host_id):
+    host = Host.query.get(host_id)
+
+    if not host:
+        return jsonify({"error": f"No host found with ID {host_id}"}), 404
+
+    try:
+        db.session.delete(host)
+        db.session.commit()
+        return jsonify({"message": "Host deleted successfully."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to delete host.",
+            "details": str(e)
+        }), 500

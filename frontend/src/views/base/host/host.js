@@ -1,114 +1,163 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
-  CCard, CCardBody, CCardHeader, CCol, CRow,
-  CTable, CTableBody, CTableDataCell, CTableHead, CTableHeaderCell, CTableRow,
-  CFormInput, CButton, CBadge
+    CCard, CCardBody, CCardHeader, CCol, CRow,
+    CTable, CTableBody, CTableDataCell, CTableHead, CTableHeaderCell, CTableRow,
+    CFormInput, CButton, CBadge
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilTrash } from '@coreui/icons'
-import { fetch_connected_host } from '../../../api/host/host_api'
-import {ConnectionBlock} from './connectionBlock'
+import { add_host_connection, fetch_connected_host, delete_host } from '../../../api/host/host_api'
+import { ConnectionBlock } from './connectionBlock'
 
 const HostTable = () => {
-  const [hosts, setHosts] = useState([])
+    const [hosts, setHosts] = useState([])
+    const [forceClearKey, setForceClearKey] = useState(0)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch_connected_host()
-        console.log(response)
-        const fetchedHosts = response.map((host) => ({
-          id: host.id,
-          label: host.name || 'Unnamed',
-          ip: host.host_ip,
-          username: host.username,
-          password: '********',
-          status: 'enabled',
-          connection: 'connected',
-        }))
-        setHosts(fetchedHosts)
-      } catch (error) {
-        console.error('Failed to fetch hosts:', error)
-      }
+    const newHostRef = useRef({
+        name: '',
+        host_ip: '',
+        username: '',
+        password: ''
+    })
+
+    const handleInputChange = (field, value) => {
+        newHostRef.current[field] = value
     }
 
-    fetchData()
-  }, [])
+    const handleConnect = async () => {
+        const data = newHostRef.current
+        if (!data.host_ip || !data.username || !data.password) {
+            alert("Host IP, username, and password are required.")
+            return
+        }
 
-  const handleDelete = (id) => {
-    setHosts((prev) => prev.filter((host) => host.id !== id))
-  }
+        const response = await add_host_connection(data)
 
-  const toggleConnection = (id) => {
-    setHosts((prevHosts) =>
-      prevHosts.map((host) =>
-        host.id === id
-          ? {
-              ...host,
-              status: host.status === 'enabled' ? 'disabled' : 'enabled',
-              connection:
-                host.status === 'enabled'
-                  ? 'idle'
-                  : Math.random() > 0.2
-                  ? 'connected'
-                  : 'failed',
+        if (response.success) {
+            const newHost = {
+                id: response.data.host.id,
+                name: response.data.host.name,
+                ip: response.data.host.host_ip,
+                username: data.username,
+                password: '********',
+                status: 'enabled',
+                connection: 'connected',
             }
-          : host
-      )
-    )
-  }
+            setHosts(prev => [...prev, newHost])
 
-  const renderConnectionBadge = (connection) => {
-    switch (connection) {
-      case 'connected':
-        return <CBadge color="success">Connected</CBadge>
-      case 'failed':
-        return <CBadge color="danger">Failed</CBadge>
-      default:
-        return <CBadge color="secondary">Idle</CBadge>
+            newHostRef.current = { name: '', host_ip: '', username: '', password: '' }
+            setForceClearKey(prev => prev + 1)
+        } else {
+            alert("Failed to connect: " + (response.error?.error || "Unknown error"))
+        }
     }
-  }
 
-  return (
-    <CRow>
-      <CCol xs={12}>
-        <CCard>
-          <CCardHeader><strong>Hosts</strong></CCardHeader>
-          <CCardBody>
-            <CTable hover responsive>
-              <CTableHead color="dark">
-                <CTableRow>
-                  <CTableHeaderCell>Label</CTableHeaderCell>
-                  <CTableHeaderCell>Host</CTableHeaderCell>
-                  <CTableHeaderCell>Username</CTableHeaderCell>
-                  <CTableHeaderCell>Password</CTableHeaderCell>
-                  <CTableHeaderCell>Status</CTableHeaderCell>
-                  <CTableHeaderCell>Connection</CTableHeaderCell>
-                  <CTableHeaderCell></CTableHeaderCell>
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                {hosts.map((host) => (
-                  <ConnectionBlock host={host}/>
-                ))}
-                <CTableRow>
-                  <CTableDataCell><CFormInput placeholder="label" /></CTableDataCell>
-                  <CTableDataCell><CFormInput placeholder="address[:port]" /></CTableDataCell>
-                  <CTableDataCell><CFormInput placeholder="username" /></CTableDataCell>
-                  <CTableDataCell><CFormInput type="password" placeholder="password" /></CTableDataCell>
-                  <CTableDataCell />
-                  <CTableDataCell />
-                  <CTableDataCell>
-                    <CButton color="primary" size="sm">Connect</CButton>
-                  </CTableDataCell>
-                </CTableRow>
-              </CTableBody>
-            </CTable>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
-  )
+    const handleDelete = async (id) => {
+        const confirmed = window.confirm("Are you sure you want to delete this host?");
+        if (!confirmed) return;
+
+        const result = await delete_host(id);
+
+        if (result.success) {
+            setHosts((prev) => prev.filter((host) => host.id !== id));
+        } else {
+            alert(`Failed to delete host: ${result.error?.error || result.error || 'Unknown error'}`);
+        }
+    };
+
+    const handleUpdate = async () => {
+        await fetchData()
+      }
+
+
+    const fetchData = async () => {
+        try {
+            const response = await fetch_connected_host()
+            const fetchedHosts = response.map((host) => ({
+                id: host.id,
+                name: host.name,
+                ip: host.host_ip,
+                username: host.username,
+                status: 'enabled',
+                connection: 'connected',
+            }))
+            setHosts(fetchedHosts)
+        } catch (error) {
+            console.error('Failed to fetch hosts:', error)
+        }
+    }
+
+    useEffect(() => {
+        fetchData()
+    }, [])
+    return (
+        <CRow>
+            <CCol xs={12}>
+                <CCard>
+                    <CCardHeader><strong>Hosts</strong></CCardHeader>
+                    <CCardBody>
+                        <CTable hover responsive>
+                            <CTableHead color="dark">
+                                <CTableRow>
+                                    <CTableHeaderCell>Name</CTableHeaderCell>
+                                    <CTableHeaderCell>Host</CTableHeaderCell>
+                                    <CTableHeaderCell>Username</CTableHeaderCell>
+                                    <CTableHeaderCell>Password</CTableHeaderCell>
+                                    <CTableHeaderCell>Status</CTableHeaderCell>
+                                    <CTableHeaderCell>Connection</CTableHeaderCell>
+                                    <CTableHeaderCell></CTableHeaderCell>
+                                </CTableRow>
+                            </CTableHead>
+                            <CTableBody>
+                                {hosts.map((host, index) => (
+                                    <ConnectionBlock key={index} handleDelete={handleDelete} handleUpdate={handleUpdate} host={host} />
+                                ))}
+                                <CTableRow key={forceClearKey}>
+                                    <CTableDataCell>
+                                        <CFormInput
+                                            defaultValue=""
+                                            placeholder="name"
+                                            onChange={(e) => handleInputChange('name', e.target.value)}
+                                        />
+                                    </CTableDataCell>
+                                    <CTableDataCell>
+                                        <CFormInput
+                                            defaultValue=""
+                                            placeholder="address[:port]"
+                                            onChange={(e) => handleInputChange('host_ip', e.target.value)}
+                                        />
+                                    </CTableDataCell>
+                                    <CTableDataCell>
+                                        <CFormInput
+                                            defaultValue=""
+                                            placeholder="username"
+                                            onChange={(e) => handleInputChange('username', e.target.value)}
+                                        />
+                                    </CTableDataCell>
+                                    <CTableDataCell>
+                                        <CFormInput
+                                            type="password"
+                                            defaultValue=""
+                                            placeholder="password"
+                                            onChange={(e) => handleInputChange('password', e.target.value)}
+                                        />
+                                    </CTableDataCell>
+                                    <CTableDataCell />
+                                    <CTableDataCell />
+                                    <CTableDataCell>
+                                        <CButton color="primary" size="sm" onClick={handleConnect}>
+                                            Connect
+                                        </CButton>
+                                    </CTableDataCell>
+                                </CTableRow>
+
+                            </CTableBody>
+                        </CTable>
+                    </CCardBody>
+                </CCard>
+            </CCol>
+        </CRow>
+    )
 }
 
 export default HostTable
