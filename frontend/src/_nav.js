@@ -35,13 +35,13 @@ const _nav = [
   {
     component: CNavItem,
     name: 'Backup',
-    to: '/theme/colors',
+    to: '/main/backup',
     icon: <CIcon icon={cilDataTransferUp} customClassName="nav-icon" />,
   },
   {
     component: CNavItem,
     name: 'Restore',
-    to: '/theme/typography',
+    to: '/main/restore',
     icon: <CIcon icon={cilRecycle} customClassName="nav-icon" />,
   },
   {
@@ -57,13 +57,13 @@ const _nav = [
       {
         component: CNavItem,
         name: 'Host',
-        to: '/base/host',
+        to: '/settings/host',
         icon: <CIcon icon={cilMonitor} customClassName="nav-icon" />
       },
       {
         component: CNavItem,
         name: 'Storage',
-        to: '/base/accordion',
+        to: '/settings/storage',
         icon: <CIcon icon={cilStorage} customClassName="nav-icon" />
       },
     ],

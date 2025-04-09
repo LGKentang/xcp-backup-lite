@@ -97,7 +97,7 @@ const HostTable = () => {
                     <CCardHeader><strong>Hosts</strong></CCardHeader>
                     <CCardBody>
                         <CTable hover responsive>
-                            <CTableHead color="dark">
+                            <CTableHead>
                                 <CTableRow>
                                     <CTableHeaderCell>Name</CTableHeaderCell>
                                     <CTableHeaderCell>Host</CTableHeaderCell>

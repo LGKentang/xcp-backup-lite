@@ -3,6 +3,7 @@ from flask_cors import CORS
 from models import db
 from routes.settings.host import host_bp
 from routes.settings.xapi import xapi_bp
+from routes.settings.storage import storage_bp
 import dotenv, os
 
 def create_app():
@@ -21,6 +22,7 @@ def create_app():
 
     app.register_blueprint(host_bp, url_prefix="/api")
     app.register_blueprint(xapi_bp, url_prefix="/api")
+    app.register_blueprint(storage_bp, url_prefix="/api")
 
     CORS(app, resources={r"/api/*": {"origins": cors_origin}})
 
