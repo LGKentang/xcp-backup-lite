@@ -104,7 +104,7 @@ const HostTable = () => {
                                     <CTableHeaderCell>Username</CTableHeaderCell>
                                     <CTableHeaderCell>Password</CTableHeaderCell>
                                     <CTableHeaderCell>Status</CTableHeaderCell>
-                                    <CTableHeaderCell>Connection</CTableHeaderCell>
+                                    {/*  */}
                                     <CTableHeaderCell></CTableHeaderCell>
                                 </CTableRow>
                             </CTableHead>
@@ -123,7 +123,7 @@ const HostTable = () => {
                                     <CTableDataCell>
                                         <CFormInput
                                             defaultValue=""
-                                            placeholder="address[:port]"
+                                            placeholder="address"
                                             onChange={(e) => handleInputChange('host_ip', e.target.value)}
                                         />
                                     </CTableDataCell>
@@ -143,12 +143,12 @@ const HostTable = () => {
                                         />
                                     </CTableDataCell>
                                     <CTableDataCell />
-                                    <CTableDataCell />
                                     <CTableDataCell>
                                         <CButton color="primary" size="sm" onClick={handleConnect}>
                                             Connect
                                         </CButton>
                                     </CTableDataCell>
+                                    <CTableDataCell />
                                 </CTableRow>
 
                             </CTableBody>

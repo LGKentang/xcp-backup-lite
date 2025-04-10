@@ -35,6 +35,18 @@ export async function fetch_connected_host() {
     }
 }
 
+export async function fetch_validly_connected_host() {
+    try {
+        console.log('Using backend API:', BASE_URL)
+        const response = await axios.get(`${BASE_URL}/api/hosts/list/connected`)
+        console.log('Fetched hosts:', response)
+        return response.data.hosts
+    } catch (error) {
+        console.error('Failed to fetch hosts:', error)
+        return []
+    }
+}
+
 export async function update_host_detail(hostId, updatedFields, handleUpdate) {
     try {
         const response = await axios.patch(`${BASE_URL}/api/hosts/update/${hostId}`, updatedFields)

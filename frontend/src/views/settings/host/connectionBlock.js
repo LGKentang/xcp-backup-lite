@@ -33,12 +33,12 @@ export const ConnectionBlock = ({ host, handleDelete, handleUpdate}) => {
     const renderConnectionBadge = (connection) => {
         switch (connection) {
             case 'connected':
-                return <CBadge color="success">Connected</CBadge>
+                return <CBadge color="success">● Connected</CBadge>
             case 'failed':
-                return <CBadge color="danger" title={errorMessage}>Failed</CBadge>
+                return <CBadge color="danger" title={errorMessage}>● Failed</CBadge>
             case 'connecting':
             default:
-                return <CBadge color="secondary">Connecting...</CBadge>
+                return <CBadge color="secondary">● Connecting...</CBadge>
         }
     }
 
@@ -57,11 +57,11 @@ export const ConnectionBlock = ({ host, handleDelete, handleUpdate}) => {
                 <EditablePasswordCell onSave={(val) => update_host_detail(host.id, { password: val }, handleUpdate)} />
             </CTableDataCell>
 
-            <CTableDataCell>
+            {/* <CTableDataCell>
                 <CBadge color={host.status === 'enabled' ? 'success' : 'secondary'}>
                     ● {host.status.charAt(0).toUpperCase() + host.status.slice(1)}
                 </CBadge>
-            </CTableDataCell>
+            </CTableDataCell> */}
             <CTableDataCell>
                 {renderConnectionBadge(connectionStatus)}
             </CTableDataCell>

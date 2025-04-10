@@ -14,49 +14,47 @@ class Host(db.Model):
     name = db.Column(db.String(50))
     host_ip = db.Column(db.String(45), nullable=False, unique=True)
     username = db.Column(db.String(50), nullable=False)
-    password = db.Column(db.String(128), nullable=False)  # Consider encryption
+    password = db.Column(db.String(128), nullable=False) 
+    connected = db.Column(db.Boolean, default=False, nullable=False)
 
-    storages = db.relationship('Storage', backref='host', lazy=True)
-    backup_jobs = db.relationship('BackupJob', backref='host', lazy=True)
-
-
-class Storage(db.Model):
-    __tablename__ = 'storages'
-
-    id = db.Column(db.Integer, primary_key=True)
-    nfs_uuid = db.Column(db.String(64), unique=True, nullable=False)
-    mount_path = db.Column(db.String(255))
-    
-    host_id = db.Column(db.Integer, db.ForeignKey('hosts.id'), nullable=False)
-
-    backup_jobs = db.relationship('BackupJob', backref='storage', lazy=True)
+    backup_jobs = db.relationship('Backup', backref='host', lazy=True)
 
 
-class BackupJob(db.Model):
-    __tablename__ = 'backup_jobs'
+class Backup(db.Model):
+    __tablename__ = 'backups'
 
     id = db.Column(db.Integer, primary_key=True)
-    backup_job_id = db.Column(db.String(64), default=generate_uuid, unique=True)
     backup_name = db.Column(db.String(100), nullable=False)
+    backup_description = db.Column(db.String(200), nullable=False)
+    sr_uuid = db.Column(db.String(64), nullable=False)
 
     host_id = db.Column(db.Integer, db.ForeignKey('hosts.id'), nullable=False)
-    storage_id = db.Column(db.Integer, db.ForeignKey('storages.id'), nullable=False)
-
-    status = db.Column(db.String(32), default='scheduled')  # scheduled, running, done, failed
-    retention = db.Column(db.Integer, default=3)
-    cron_schedule = db.Column(db.String(64))
+    active = db.Column(db.Boolean, nullable=False)
+    retention = db.Column(db.Integer, nullable=False)
+    cron_schedule = db.Column(db.String(50), nullable=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    restore_jobs = db.relationship('RestoreJob', backref='backup_job', lazy=True)
+    restore_jobs = db.relationship('Restore', backref='backup', lazy=True)
 
 
-class RestoreJob(db.Model):
-    __tablename__ = 'restore_jobs'
+class Restore(db.Model):
+    __tablename__ = 'restores'
 
     id = db.Column(db.Integer, primary_key=True)
     sr_uuid = db.Column(db.String(64), nullable=False)
     preserve = db.Column(db.Boolean, default=True)
     
-    backup_job_id = db.Column(db.Integer, db.ForeignKey('backup_jobs.id'), nullable=True)
+    backup_id = db.Column(db.Integer, db.ForeignKey('backups.id'), nullable=True)
     restored_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Run(db.Model):
+    __tablename__ = 'runs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_uuid = db.Column(db.String(64), default=generate_uuid, unique=True)
+    type = db.Column(db.String(20), nullable=False)  # "backup" or "restore"
+    output_message = db.Column(db.Text, nullable=True)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)

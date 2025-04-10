@@ -34,9 +34,8 @@ const Backup = () => {
             </div>
 
 
-
             <BackupModal
-                visible={modalVisible}
+                visible={true}
                 onClose={handleModalClose}
                 onSave={handleSaveBackup}
             />

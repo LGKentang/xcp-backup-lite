@@ -4,12 +4,6 @@ from models import db, Host
 
 storage_bp = Blueprint("storage_bp", __name__)
 
-import XenAPI
-from flask import Blueprint, request, jsonify
-from models import db, Host
-
-storage_bp = Blueprint("storage_bp", __name__)
-
 @storage_bp.route('/storage/list', methods=['GET'])
 def list_storage_host():
     host_ip = request.args.get('host_ip')

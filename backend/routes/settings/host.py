@@ -46,8 +46,6 @@ def add_host():
 
 @host_bp.route('/hosts/list', methods=['GET'])
 def list_hosts():
-    from models import Host
-
     hosts = Host.query.all()
     result = []
 
@@ -57,12 +55,34 @@ def list_hosts():
             "name": host.name,
             "host_ip": host.host_ip,
             "username": host.username
+            
         })
 
     return jsonify({
         "total": len(result),
         "hosts": result
     }), 200
+
+@host_bp.route('/hosts/list/connected', methods=['GET'])
+def list_validly_connected_hosts():
+    connected_hosts = Host.query.filter_by(connected=True).all()
+    
+    result = [
+        {
+            "id": host.id,
+            "name": host.name,
+            "host_ip": host.host_ip,
+            "username": host.username
+        }
+        for host in connected_hosts
+    ]
+
+    return jsonify({
+        "total": len(result),
+        "hosts": result
+    }), 200
+
+
     
 @host_bp.route('/hosts/update/<int:host_id>', methods=['PATCH'])
 def update_host(host_id):
