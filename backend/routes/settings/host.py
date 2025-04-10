@@ -133,3 +133,47 @@ def delete_host(host_id):
             "error": "Failed to delete host.",
             "details": str(e)
         }), 500
+
+@host_bp.route('/hosts/list/active', methods=['GET'])
+def list_active_hosts():   
+    host_ip = request.args.get('host_ip')
+
+    if not host_ip:
+        return jsonify({"error": "Missing 'host_ip' in body"}), 400
+
+    host_record = Host.query.filter_by(host_ip=host_ip).first()
+    if not host_record:
+        return jsonify({
+            "error": f"No host found with IP {host_ip}.",
+            "code": 404
+        }), 404
+
+    try:
+        session = XenAPI.Session(f"http://{host_ip}")
+        session.login_with_password(host_record.username, host_record.password)
+
+        hosts = []
+        for host_ref in session.xenapi.host.get_all():
+            rec = session.xenapi.host.get_record(host_ref)
+            hosts.append({
+                "uuid": rec.get("uuid"),
+                "name_label": rec.get("name_label"),
+                "address": rec.get("address"),
+                "enabled": rec.get("enabled"),
+                "live": rec.get("live")
+            })
+
+        session.logout()
+
+        return jsonify({
+            "hosts": hosts,
+            "count": len(hosts),
+            "code": 200
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to retrieve hosts from master {host_ip}",
+            "details": str(e),
+            "code": 502
+        }), 502

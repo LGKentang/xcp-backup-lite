@@ -10,8 +10,8 @@ def add_backup():
 
     try:
         new_backup = Backup(
-            backup_name=data['backup_name'],
-            backup_description=data['backup_description'],
+            name=data['name'],
+            description=data['description'],
             sr_uuid=data['sr_uuid'],
             host_id=data['host_id'],
             active=data['active'],
@@ -19,7 +19,8 @@ def add_backup():
             cron_schedule=data.get('cron_schedule')
         )
         db.session.add(new_backup)
-        db.session.commit()
+        db.session.commit()       
+        
         return jsonify({'message': 'Backup job added', 'id': new_backup.id}), 201
     except Exception as e:
         db.session.rollback()
@@ -31,9 +32,9 @@ def list_backup():
     return jsonify([
         {
             'id': b.id,
-            'backup_name': b.backup_name,
-            'description': b.backup_description,
-            'sr_uuid': b.sr_uuid,
+            'name': b.name,
+            'description': b.description,
+            'location': b.sr_uuid,
             'host_id': b.host_id,
             'active': b.active,
             'retention': b.retention,

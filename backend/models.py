@@ -24,8 +24,8 @@ class Backup(db.Model):
     __tablename__ = 'backups'
 
     id = db.Column(db.Integer, primary_key=True)
-    backup_name = db.Column(db.String(100), nullable=False)
-    backup_description = db.Column(db.String(200), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(200), nullable=False)
     sr_uuid = db.Column(db.String(64), nullable=False)
 
     host_id = db.Column(db.Integer, db.ForeignKey('hosts.id'), nullable=False)

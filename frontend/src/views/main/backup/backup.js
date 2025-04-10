@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CTable, CTableHead, CTableBody, CTableRow, CTableHeaderCell, CTableDataCell, CButton, CBadge, CRow, CCol, CCard, CCardHeader, CCardBody } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilTrash, cilPlus, cilPencil } from '@coreui/icons';
+import { cilTrash, cilPlus, cilPencil, cilMediaPlay} from '@coreui/icons';
 import BackupModal from './backup-modal.js';
+import { add_backup, fetch_backups } from '../../../api/backup/backup_api.js';
 
 
 const Backup = () => {
-    const [backups, setBackups] = useState([
-        { id: 1, name: 'Backup 1', schedule: 'Daily', location: '/mnt/backup1', status: 'Active' },
-        { id: 2, name: 'Backup 2', schedule: 'Weekly', location: '/mnt/backup2', status: 'Inactive' },
-        { id: 3, name: 'Backup 3', schedule: 'Monthly', location: '/mnt/backup3', status: 'Active' }
-    ]);
+    const [backups, setBackups] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
 
 
@@ -18,12 +15,29 @@ const Backup = () => {
 
     const handleModalOpen = () => setModalVisible(true);
 
+    useEffect(()=>{
+        const handleFetchBackup = async () => {
+            const response = await fetch_backups();
+            console.log(response)
+            setBackups(response)
+        }
+        handleFetchBackup()
+    },[])
+
+    const handleRun = (backupObject) => {
+
+    }
+
     const handleSaveBackup = (newBackup) => {
+
+        // Step 4: If successful, add the new backup to the list
         setBackups((prevBackups) => [
             ...prevBackups,
             { id: prevBackups.length + 1, ...newBackup }
         ]);
+
     };
+
 
     return (
         <>
@@ -35,7 +49,7 @@ const Backup = () => {
 
 
             <BackupModal
-                visible={true}
+                visible={modalVisible}
                 onClose={handleModalClose}
                 onSave={handleSaveBackup}
             />
@@ -60,14 +74,18 @@ const Backup = () => {
                                     {backups.map((backup) => (
                                         <CTableRow key={backup.id}>
                                             <CTableDataCell>{backup.name}</CTableDataCell>
-                                            <CTableDataCell>{backup.schedule}</CTableDataCell>
+                                            <CTableDataCell>{backup.cron_schedule}</CTableDataCell>
                                             <CTableDataCell>{backup.location}</CTableDataCell>
                                             <CTableDataCell>
-                                                <CBadge color={backup.status === 'Active' ? 'success' : 'secondary'}>
+                                                {/* why doesnt this show vv */}
+                                                <CBadge color={backup.active == true ? 'success' : 'secondary'}>
                                                     {backup.status}
                                                 </CBadge>
                                             </CTableDataCell>
                                             <CTableDataCell className="d-flex justify-content-end gap-2">
+                                            <CButton color="secondary" variant="outline" size="sm">
+                                                    <CIcon icon={cilMediaPlay} />
+                                                </CButton>
                                                 <CButton color="secondary" variant="outline" size="sm">
                                                     <CIcon icon={cilPencil} />
                                                 </CButton>

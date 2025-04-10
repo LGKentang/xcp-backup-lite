@@ -59,8 +59,8 @@ def backup_vm():
         return jsonify({"status": "error", "message": "Missing one or more required fields"}), 400
 
     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-    backup_name = f"backup-{timestamp}"
-    backup_dir = f"/run/sr-mount/{sr_uuid}/xcp-backups/{backup_name}"
+    backup_name = f"{vm_uuid}-{timestamp}"
+    backup_dir = f"/run/sr-mount/{sr_uuid}/xcp-backups/{vm_uuid}"
     export_path = f"{backup_dir}/{backup_name}.xva"
 
     commands = [
@@ -102,6 +102,56 @@ def backup_vm():
             "status": "error",
             "message": f"Backup failed: {str(e)}"
         }), 500
+        
+@xapi_bp.route("/xapi/restore", methods=["POST"])
+def restore_vm():
+    data = request.get_json()
+
+    host_ip = data.get("host_ip")
+    username = data.get("username")
+    password = data.get("password")
+    sr_uuid = data.get("sr_uuid")
+    xva_path = data.get("xva_path") 
+
+    if not all([host_ip, username, password, sr_uuid, xva_path]):
+        return jsonify({
+            "status": "error",
+            "message": "Missing one or more required fields: host_ip, username, password, sr_uuid, xva_path"
+        }), 400
+
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(host_ip, username=username, password=password)
+
+        import_cmd = (
+            f"xe vm-import filename={xva_path} "
+            f"sr-uuid={sr_uuid} preserve=true"
+        )
+
+        stdin, stdout, stderr = ssh.exec_command(import_cmd)
+        stdout_result = stdout.read().decode()
+        stderr_result = stderr.read().decode()
+        ssh.close()
+
+        if stderr_result:
+            return jsonify({
+                "status": "error",
+                "message": f"Restore failed: {stderr_result.strip()}"
+            }), 500
+
+        return jsonify({
+            "status": "success",
+            "message": "VM restore completed successfully.",
+            "output": stdout_result.strip()
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Restore operation failed: {str(e)}"
+        }), 500
+
         
 # @xapi_bp.route("/xapi/backup_vm_stream", methods=["POST"])
 # def backup_vm_stream():

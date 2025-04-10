@@ -1,11 +1,13 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import {
-    CModal, CModalBody, CModalFooter, CModalHeader, CModalTitle, CButton, CFormSwitch
+    CModal, CModalBody, CModalFooter, CModalHeader, CModalTitle, CButton, CFormSwitch, CFormSelect
 } from '@coreui/react';
 import { ReUnixCron } from '@sbzen/re-cron';
 import cronstrue from 'cronstrue';
 import { fetch_validly_connected_host } from '../../../api/host/host_api';
 import { fetch_host_sr } from '../../../api/storage/storage_repository_api';
+import { get_active_vm_hierarchical } from '../../../api/xapi/vm';
+import { add_backup } from '../../../api/backup/backup_api';
 
 const BackupModal = ({ visible, onClose, onSave }) => {
     const [newBackup, setNewBackup] = useState({
@@ -22,6 +24,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
     const [isManualInput, setIsManualInput] = useState(false);
     const [hosts, setHosts] = useState([])
     const [sr, setSrs] = useState([[]])
+    const [vm, setVms] = useState([])
     const [selectedHostIp, setSelectedHostIp] = useState('');
 
 
@@ -54,15 +57,93 @@ const BackupModal = ({ visible, onClose, onSave }) => {
             }
         }
 
+        async function handleFetchVms() {
+            if (!selectedHostIp) return;
+
+            try {
+                const vms = await get_active_vm_hierarchical(selectedHostIp);
+                console.log(vms)
+                setVms(vms)
+            } catch (error) {
+                console.error('Failed to fetch VM:', selectedHostIp, error);
+            }
+        }
+
         handleFetchHostSr();
+        handleFetchVms();
     }, [selectedHostIp]);
 
-    const handleSave = () => {
-        onSave(newBackup);
-        setNewBackup({ name: '', schedule: '', location: '', status: 'Active' });
+    const handleSave = async () => {
+        if (!newBackup.name.trim()) {
+            alert('Name is required.');
+            return;
+        }
+
+        if (!newBackup.description.trim()) {
+            alert('Description is required.');
+            return;
+        }
+
+        if (!selectedHostIp) {
+            alert('Please select a host.');
+            return;
+        }
+
+        const check_retention = parseInt(newBackup.retention, 10);
+        if (isNaN(check_retention) || check_retention < 1) {
+            alert('Retention must be a number greater than or equal to 1.');
+            return;
+        }
+
+        try {
+            cronstrue.toString(cron);
+        } catch (err) {
+            alert('Schedule must be a valid CRON expression.');
+            return;
+        }
+
+        if (!newBackup.location) {
+            alert('Please select a storage repository.');
+            return;
+        }
+
+        const backupData = {
+            ...newBackup,
+            cronSchedule: cron,
+            status: newBackup.status === "Active" ? "Active" : "Inactive",
+        };
+
+        
+        const { name, description, location, status, retention, schedule } = newBackup;
+        const hostId = selectedHostIp;
+        const srUuid = location; 
+        
+        const addedBackupResponse = await add_backup({
+            name,
+            description,
+            sr_uuid: srUuid,
+            host_id: hostId,
+            active: status === 'Active',
+            retention,
+            cron_schedule: schedule,
+        });
+    
+        onSave(backupData);
+        
+        setNewBackup({
+            name: '',
+            description: '',
+            location: '',
+            retention: 1,
+            status: 'Active',
+            schedule: '',
+            runOnce: false
+        });
+        setSelectedHostIp('');
         setIsManualInput(false);
         onClose();
     };
+
 
     let cronHumanReadable = '';
     try {
@@ -88,28 +169,29 @@ const BackupModal = ({ visible, onClose, onSave }) => {
         return `${format(usedGb)} used / ${format(freeGb)} free`;
     }
 
+
     const handleCreateBackup = () => {
         if (!newBackup.name.trim()) {
             alert('Name is required.');
             return;
         }
-    
+
         if (!newBackup.description.trim()) {
             alert('Description is required.');
             return;
         }
-    
+
         if (!selectedHostIp) {
             alert('Please select a host.');
             return;
         }
-    
+
         const retention = parseInt(newBackup.retention, 10);
         if (isNaN(retention) || retention < 1) {
             alert('Retention must be a number greater than or equal to 1.');
             return;
         }
-    
+
         try {
             cronstrue.toString(cron);
         } catch (err) {
@@ -118,7 +200,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
         }
 
         onSave(newBackup);
-    
+
         setNewBackup({
             name: '',
             description: '',
@@ -128,12 +210,12 @@ const BackupModal = ({ visible, onClose, onSave }) => {
             schedule: '',
             runOnce: false
         });
-    
+
         setSelectedHostIp('');
         setIsManualInput(false);
         onClose();
     };
-    
+
 
     return (
         <CModal visible={visible} onClose={onClose} backdrop="static" size="xl">
@@ -174,7 +256,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
                         onChange={(e) => setSelectedHostIp(e.target.value)}
                     >
                         <option value="" disabled>Select a host</option>
-                        {hosts.map((host,index) => (
+                        {hosts.map((host, index) => (
                             <option key={index} value={host.host_ip}>
                                 {`${host.name} (${host.host_ip})`}
                             </option>
@@ -193,6 +275,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
                     />
                 </div>
 
+                {selectedHostIp && vm && Array.isArray(vm) && vm.length > 0 && <HierarchicalDropdown vms={vm} />}
 
                 {selectedHostIp && sr.length > 0 && (
                     <div className="mb-3">
@@ -204,7 +287,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
                             onChange={(e) => setNewBackup({ ...newBackup, location: e.target.value })}
                         >
                             <option value="" disabled>Select a Storage Repository</option>
-                            {sr.map((item,index) => (
+                            {sr.map((item, index) => (
                                 <option key={index} value={item.uuid}>
                                     {item.name} ({formatStorage(item.physical_utilisation_gb, item.physical_size_gb)})
                                 </option>
@@ -259,20 +342,6 @@ const BackupModal = ({ visible, onClose, onSave }) => {
                     </label>
                 </div>
 
-                <div className="form-check mb-3">
-                    <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="runOnceCheckbox"
-                        checked={newBackup.runOnce}
-                        onChange={(e) => setNewBackup({ ...newBackup, runOnce: e.target.checked })}
-                    />
-
-                    <label className="form-check-label" htmlFor="runOnceCheckbox">
-                        Run Once
-                    </label>
-                </div>
-
             </CModalBody>
             <CModalFooter>
                 <CButton color="secondary" onClick={onClose}>Close</CButton>
@@ -283,3 +352,40 @@ const BackupModal = ({ visible, onClose, onSave }) => {
 };
 
 export default BackupModal;
+
+
+const HierarchicalDropdown = ({ vms }) => {
+    const [selectedValue, setSelectedValue] = useState('');
+
+    const handleChange = (event) => {
+        setSelectedValue(event.target.value);
+    };
+
+    const renderOptions = (vmsData) => {
+        return vmsData.map((category, categoryIndex) => {
+            return (
+                <optgroup label={category.host_name} key={categoryIndex}>
+                    {category.vms.map((vm, vmIndex) => (
+                        <option value={vm.uuid} key={vmIndex}>
+                            {vm.name_label}
+                        </option>
+                    ))}
+                </optgroup>
+            );
+        });
+    };
+
+    return (
+        <div>
+            <label htmlFor="vm">VM</label>
+            <CFormSelect
+                value={selectedValue}
+                onChange={handleChange}
+                aria-label="Hierarchical Dropdown"
+                style={{ marginBottom: ".7rem" }}
+            >
+                {renderOptions(vms)}
+            </CFormSelect>
+        </div>
+    );
+};
