@@ -15,11 +15,26 @@ export async function fetch_backups() {
     }
 }
 
+export async function fetch_backup_by_id(backup_id) {
+  try {
+      console.log('Using backend API:', BASE_URL)
+      const response = await axios.get(`${BASE_URL}/api/backup/list/${backup_id}`)
+      console.log('Fetched hosts:', response)
+      return response.data
+  } catch (error) {
+      console.error('Failed to fetch hosts:', error)
+      return []
+  }
+}
+
 export async function add_backup({
   name,
   description,
   sr_uuid,
-  host_id,
+  sr_name,
+  vm_uuid,
+  vm_name,
+  host_ip,
   active,
   retention,
   cron_schedule,
@@ -31,7 +46,10 @@ export async function add_backup({
       name,
       description,
       sr_uuid,
-      host_id,
+      sr_name,
+      vm_uuid,
+      vm_name,
+      host_ip,
       active,
       retention,
       cron_schedule,
@@ -43,5 +61,17 @@ export async function add_backup({
   } catch (error) {
     console.error('Failed to add backup:', error);
     return []; 
+  }
+}
+
+export async function delete_backup(backup_id) {
+  try {
+      console.log('Using backend API:', BASE_URL)
+      const response = await axios.delete(`${BASE_URL}/api/backup/delete/${backup_id}`)
+      console.log('Fetched hosts:', response)
+      return response.data
+  } catch (error) {
+      console.error('Failed to fetch hosts:', error)
+      return []
   }
 }

@@ -13,7 +13,6 @@ const BackupModal = ({ visible, onClose, onSave }) => {
     const [newBackup, setNewBackup] = useState({
         name: '',
         description: '',
-        location: '',
         retention: 1,
         status: 'Active',
         schedule: '',
@@ -25,8 +24,9 @@ const BackupModal = ({ visible, onClose, onSave }) => {
     const [hosts, setHosts] = useState([])
     const [sr, setSrs] = useState([[]])
     const [vm, setVms] = useState([])
+    const [selectedVm, setSelectedVm] = useState()
+    const [selectedSr, setSelectedSr] = useState()
     const [selectedHostIp, setSelectedHostIp] = useState('');
-
 
     useEffect(() => {
         setNewBackup(prev => ({ ...prev, schedule: cron }));
@@ -102,7 +102,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
             return;
         }
 
-        if (!newBackup.location) {
+        if (!selectedSr) {
             alert('Please select a storage repository.');
             return;
         }
@@ -110,30 +110,30 @@ const BackupModal = ({ visible, onClose, onSave }) => {
         const backupData = {
             ...newBackup,
             cronSchedule: cron,
-            status: newBackup.status === "Active" ? "Active" : "Inactive",
+            active: newBackup.status === "Active" ? true : false,
         };
 
+
+        const { name, description, status, retention, schedule } = newBackup;
         
-        const { name, description, location, status, retention, schedule } = newBackup;
-        const hostId = selectedHostIp;
-        const srUuid = location; 
-        
-        const addedBackupResponse = await add_backup({
+        await add_backup({
             name,
             description,
-            sr_uuid: srUuid,
-            host_id: hostId,
+            sr_uuid: selectedSr.uuid,
+            sr_name: selectedSr.name,
+            vm_uuid: selectedVm.uuid,
+            vm_name: selectedVm.name,
+            host_ip: selectedHostIp,
             active: status === 'Active',
             retention,
             cron_schedule: schedule,
         });
-    
+
         onSave(backupData);
-        
+
         setNewBackup({
             name: '',
             description: '',
-            location: '',
             retention: 1,
             status: 'Active',
             schedule: '',
@@ -204,7 +204,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
         setNewBackup({
             name: '',
             description: '',
-            location: '',
+            sr_uuid: '',
             retention: 0,
             status: 'Active',
             schedule: '',
@@ -275,16 +275,18 @@ const BackupModal = ({ visible, onClose, onSave }) => {
                     />
                 </div>
 
-                {selectedHostIp && vm && Array.isArray(vm) && vm.length > 0 && <HierarchicalDropdown vms={vm} />}
-
+                {selectedHostIp && vm && Array.isArray(vm) && vm.length > 0 && <HierarchicalDropdown vms={vm} onSelectedValue={setSelectedVm} />}
                 {selectedHostIp && sr.length > 0 && (
                     <div className="mb-3">
                         <label htmlFor="sr">Storage Repository (NFS)</label>
                         <select
                             className="form-control"
                             id="sr"
-                            value={newBackup.location}
-                            onChange={(e) => setNewBackup({ ...newBackup, location: e.target.value })}
+                            value={selectedSr?.uuid || ''}
+                            onChange={(e) => {
+                                const selected = sr.find(item => item.uuid === e.target.value);
+                                if (selected) setSelectedSr(selected);
+                            }}
                         >
                             <option value="" disabled>Select a Storage Repository</option>
                             {sr.map((item, index) => (
@@ -295,6 +297,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
                         </select>
                     </div>
                 )}
+
 
                 <div className="mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-2">
@@ -354,36 +357,48 @@ const BackupModal = ({ visible, onClose, onSave }) => {
 export default BackupModal;
 
 
-const HierarchicalDropdown = ({ vms }) => {
-    const [selectedValue, setSelectedValue] = useState('');
+const HierarchicalDropdown = ({ vms, onSelectedValue }) => {
+    const [selectedUuid, setSelectedUuid] = useState('');
 
     const handleChange = (event) => {
-        setSelectedValue(event.target.value);
+        const uuid = event.target.value;
+        setSelectedUuid(uuid);
+
+        // Flatten and find the VM by UUID
+        const flatVMs = vms.flatMap(group => group.vms);
+        const selectedVM = flatVMs.find(vm => vm.uuid === uuid);
+
+        if (selectedVM) {
+            onSelectedValue({
+                uuid: selectedVM.uuid,
+                name: selectedVM.name_label,
+            });
+        }
     };
 
     const renderOptions = (vmsData) => {
-        return vmsData.map((category, categoryIndex) => {
-            return (
-                <optgroup label={category.host_name} key={categoryIndex}>
-                    {category.vms.map((vm, vmIndex) => (
-                        <option value={vm.uuid} key={vmIndex}>
-                            {vm.name_label}
-                        </option>
-                    ))}
-                </optgroup>
-            );
-        });
+        return vmsData.map((category, categoryIndex) => (
+            <optgroup label={category.host_name} key={categoryIndex}>
+                {category.vms.map((vm, vmIndex) => (
+                    <option value={vm.uuid} key={vmIndex}>
+                        {vm.name_label}
+                    </option>
+                ))}
+            </optgroup>
+        ));
     };
 
     return (
         <div>
             <label htmlFor="vm">VM</label>
             <CFormSelect
-                value={selectedValue}
+                id="vm"
+                value={selectedUuid}
                 onChange={handleChange}
                 aria-label="Hierarchical Dropdown"
                 style={{ marginBottom: ".7rem" }}
             >
+                <option value="">Select a VM</option>
                 {renderOptions(vms)}
             </CFormSelect>
         </div>

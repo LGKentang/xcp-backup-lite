@@ -84,13 +84,13 @@ def list_validly_connected_hosts():
 
 
     
-@host_bp.route('/hosts/update/<int:host_id>', methods=['PATCH'])
-def update_host(host_id):
+@host_bp.route('/hosts/update/<int:host_ip>', methods=['PATCH'])
+def update_host(host_ip):
     data = request.get_json()
-    host = Host.query.get(host_id)
+    host = Host.query.get(host_ip)
 
     if not host:
-        return jsonify({"error": f"No host found with ID {host_id}"}), 404
+        return jsonify({"error": f"No host found with ID {host_ip}"}), 404
 
     updatable_fields = ['name' ,'host_ip','username', 'password']
     for field in updatable_fields:
@@ -116,12 +116,12 @@ def update_host(host_id):
         }), 500
 
 
-@host_bp.route('/hosts/delete/<int:host_id>', methods=['DELETE'])
-def delete_host(host_id):
-    host = Host.query.get(host_id)
+@host_bp.route('/hosts/delete/<int:host_ip>', methods=['DELETE'])
+def delete_host(host_ip):
+    host = Host.query.get(host_ip)
 
     if not host:
-        return jsonify({"error": f"No host found with ID {host_id}"}), 404
+        return jsonify({"error": f"No host found with ID {host_ip}"}), 404
 
     try:
         db.session.delete(host)
