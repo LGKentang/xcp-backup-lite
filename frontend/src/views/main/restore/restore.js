@@ -5,8 +5,8 @@ import {
   CTableHead, CTableRow, CTableHeaderCell, CTableDataCell, CButton, CBadge
 } from '@coreui/react'
 import { Link } from 'react-router-dom'
-// import { get_all_restores } from '../../../api/restore/restore_api'
-import { cilPlus } from '@coreui/icons'
+import { get_all_restores } from '../../../api/restore/restore_api'
+import { cilPlus, cilRecycle } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 import RestoreModal from './restore-modal'
 
@@ -38,23 +38,20 @@ const Restore = () => {
     fetchRestores()
   }, [])
 
-  function handleSaveRestore() {
-
+  function handleSaveRestore(restore) {
+    setRestores((prevRestore) => [
+      ...prevRestore,
+      { id: prevRestore.length + 1, ...restore },
+    ]);
   }
 
   return (
     <>
       <div className="d-flex justify-content-end mb-4">
         <CButton color="primary" variant="outline" onClick={handleModalOpen}>
-          <CIcon icon={cilPlus} /> Restore a Backup
+          <CIcon icon={cilPlus} /> Add Restore Plan
         </CButton>
       </div>
-
-
-      <CBreadcrumb className="mb-4">
-        <CBreadcrumbItem><Link to="/">Home</Link></CBreadcrumbItem>
-        <CBreadcrumbItem active>Restore</CBreadcrumbItem>
-      </CBreadcrumb>
 
       <RestoreModal
         visible={modalVisible}
@@ -80,10 +77,8 @@ const Restore = () => {
                 <CTableHead>
                   <CTableRow>
                     <CTableHeaderCell>ID</CTableHeaderCell>
-                    <CTableHeaderCell>VM</CTableHeaderCell>
-                    <CTableHeaderCell>Status</CTableHeaderCell>
-                    <CTableHeaderCell>Started At</CTableHeaderCell>
-                    <CTableHeaderCell>Ended At</CTableHeaderCell>
+                    <CTableHeaderCell>Backup</CTableHeaderCell>
+                    <CTableHeaderCell>To SR</CTableHeaderCell>
                     <CTableHeaderCell>Actions</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
@@ -91,22 +86,11 @@ const Restore = () => {
                   {restores.map((job) => (
                     <CTableRow key={job.id}>
                       <CTableDataCell><strong>{job.id}</strong></CTableDataCell>
-                      <CTableDataCell>{job.vm_name}</CTableDataCell>
+                      <CTableDataCell>{job.backup_name}</CTableDataCell>
+                      <CTableDataCell>{job.sr_name}</CTableDataCell>
                       <CTableDataCell>
-                        <CBadge color={
-                          job.status === 'Success' ? 'success' :
-                          job.status === 'Running' ? 'warning' : 'danger'
-                        }>
-                          {job.status}
-                        </CBadge>
-                      </CTableDataCell>
-                      <CTableDataCell>{new Date(job.started_at).toLocaleString()}</CTableDataCell>
-                      <CTableDataCell>
-                        {job.completed_at ? new Date(job.completed_at).toLocaleString() : '-'}
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <CButton color="primary" size="sm" disabled title="Restore Again">
-                          <CIcon icon={cilRestore} />
+                        <CButton color="primary" size="sm" title="Restore Again">
+                          <CIcon icon={cilRecycle} />
                         </CButton>
                       </CTableDataCell>
                     </CTableRow>

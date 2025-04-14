@@ -2,6 +2,7 @@ import XenAPI
 from flask import Blueprint, request, jsonify
 from models import db, Host, Backup
 from pytz import timezone
+from sqlalchemy.orm import joinedload
 
 WIB = timezone('Asia/Jakarta')
 backup_bp = Blueprint("backup_bp", __name__)
@@ -33,7 +34,13 @@ def add_backup():
 
 @backup_bp.route('/backup/list', methods=['GET'])
 def list_backup():
-    backups = Backup.query.all()
+    host_ip = request.args.get('host_ip')
+
+    if host_ip:
+        backups = Backup.query.filter_by(host_ip=host_ip).all()
+    else:
+        backups = Backup.query.all()
+
     return jsonify([
         {
             'id': b.id,
@@ -51,6 +58,7 @@ def list_backup():
         }
         for b in backups
     ])
+
 
 @backup_bp.route('/backup/list/<int:backup_id>', methods=['GET'])
 def list_backup_by_id(backup_id):
@@ -74,7 +82,44 @@ def list_backup_by_id(backup_id):
         'created_at': backup.created_at.astimezone(WIB).isoformat()
     })
 
+@backup_bp.route('/backup/list/active/<int:backup_id>', methods=['GET'])
+def list_active_backups_by_id(backup_id):
+    backup = Backup.query.options(joinedload(Backup.jobs)).get(backup_id)
 
+    if not backup:
+        return jsonify({'error': 'Backup not found'}), 404
+    print(backup.__dict__)
+    for job in backup.jobs:
+        print(job.__dict__)
+    successful_jobs = sorted(
+        [job for job in backup.jobs if job.type == 'backup' and job.status == 'Success'],
+        key=lambda job: job.started_at,
+        reverse=True
+    )
+
+    retained_jobs = successful_jobs[:backup.retention]
+
+    result = [
+        {
+            'job_id': job.id,
+            'job_uuid': job.job_uuid,
+            'status': job.status,
+            'output_message': job.output_message,
+            'started_at': job.started_at.astimezone(WIB).isoformat(),
+            'completed_at': job.completed_at.astimezone(WIB).isoformat() if job.completed_at else None,
+            'backup': {
+                'id': backup.id,
+                'name': backup.name,
+                'description': backup.description,
+                'vm_name': backup.vm_name,
+                'vm_uuid' : backup.vm_uuid,
+                'created_at': backup.created_at.astimezone(WIB).isoformat()
+            }
+        }
+        for job in retained_jobs
+    ]
+
+    return jsonify(result)
 
 
 @backup_bp.route('/backup/update/<int:backup_id>', methods=['PATCH'])

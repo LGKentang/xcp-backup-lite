@@ -27,7 +27,7 @@ const BackupModal = ({ visible, onClose, onSave }) => {
     const [selectedVm, setSelectedVm] = useState()
     const [selectedSr, setSelectedSr] = useState()
     const [selectedHostIp, setSelectedHostIp] = useState('');
-
+    console.log(selectedSr)
     useEffect(() => {
         setNewBackup(prev => ({ ...prev, schedule: cron }));
     }, [cron]);
@@ -109,6 +109,8 @@ const BackupModal = ({ visible, onClose, onSave }) => {
 
         const backupData = {
             ...newBackup,
+            sr_name: selectedSr.name,
+            host_ip: selectedHostIp,
             cronSchedule: cron,
             active: newBackup.status === "Active" ? true : false,
         };

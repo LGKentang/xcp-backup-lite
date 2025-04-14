@@ -1,12 +1,17 @@
 from uuid import uuid4
-import XenAPI, os, time, re, paramiko
+import XenAPI
+import os
+import time
+import re
+import paramiko
 from datetime import datetime
 from flask import Blueprint, request, jsonify
-from models import Host, Job 
+from models import Host, Job, Restore
 from models import db
 
 
 xapi_bp = Blueprint("xapi_bp", __name__)
+
 
 @xapi_bp.route('/xapi/test_connection', methods=['POST'])
 def xapi_test_connection():
@@ -19,7 +24,7 @@ def xapi_test_connection():
         }), 400
 
     host_ip = data['host_ip']
-    
+
     host_record = Host.query.filter_by(host_ip=host_ip).first()
     if not host_record:
         return jsonify({
@@ -31,10 +36,10 @@ def xapi_test_connection():
         session = XenAPI.Session(f"http://{host_ip}")
         session.login_with_password(host_record.username, host_record.password)
         session.logout()
-        
+
         host_record.connected = True
         db.session.commit()
-        
+
         return jsonify({
             "message": "Connection successful.",
             "code": 200
@@ -45,6 +50,7 @@ def xapi_test_connection():
             "details": str(e),
             "code": 502
         }), 502
+
 
 @xapi_bp.route("/xapi/backup_vm", methods=["POST"])
 def backup_vm():
@@ -58,7 +64,7 @@ def backup_vm():
 
     if not all([host_ip, vm_uuid, sr_uuid]):
         return jsonify({"status": "error", "message": "Missing one or more required fields"}), 400
-    
+
     host = Host.query.filter_by(host_ip=host_ip).first()
     if not host:
         return jsonify({"status": "error", "message": f"No host found with IP {host_ip}"}), 404
@@ -77,12 +83,11 @@ def backup_vm():
     db.session.add(job)
     db.session.commit()
 
-    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-    backup_name = f"{timestamp}--{vm_uuid}"
+    backup_name = f"{job.job_uuid}"
     backup_dir = f"/run/sr-mount/{sr_uuid}/xcp-backups/{vm_uuid}"
     os.makedirs(backup_dir, exist_ok=True)
     export_path = f"{backup_dir}/{backup_name}.xva"
-    
+
     commands = [
         f"xe vm-snapshot uuid={vm_uuid} new-name-label={backup_name}",
         f"SNAP_UUID=$(xe snapshot-list name-label={backup_name} --minimal)",
@@ -104,7 +109,8 @@ def backup_vm():
         stderr_result = stderr.read().decode()
         ssh.close()
 
-        job.output_message = stdout_result.strip() if not stderr_result else stderr_result.strip()
+        job.output_message = stdout_result.strip(
+        ) if not stderr_result else stderr_result.strip()
         job.status = "Success" if not stderr_result else "Failed"
         job.completed_at = datetime.utcnow()
 
@@ -141,75 +147,99 @@ def backup_vm():
             "job_status": job.status,
             "output": job.output_message
         }), 500
-        
+
 @xapi_bp.route("/xapi/restore", methods=["POST"])
 def restore_vm():
     data = request.get_json()
 
     host_ip = data.get("host_ip")
-    username = data.get("username")
-    password = data.get("password")
     sr_uuid = data.get("sr_uuid")
-    xva_path = data.get("xva_path") 
+    restore_id = data.get("restore_id")
+    job_uuid = data.get("job_uuid")
+    vm_uuid = data.get("vm_uuid")
+    is_latest_backup = data.get("is_latest_backup", True)
 
-    if not all([host_ip, username, password, sr_uuid, xva_path]):
+    if not all([host_ip, sr_uuid, job_uuid]):
         return jsonify({
             "status": "error",
-            "message": "Missing one or more required fields: host_ip, username, password, sr_uuid, xva_path"
+            "message": "Missing one or more required fields: host_ip, sr_uuid, job_uuid"
         }), 400
+
+    host = Host.query.filter_by(host_ip=host_ip).first()
+    if not host:
+        return jsonify({"status": "error", "message": f"No host found with IP {host_ip}"}), 404
+
+    preserve = db.session.query(Restore).with_entities(Restore.preserve).filter_by(id=restore_id).scalar()
+
+    username = host.username
+    password = host.password
+
+    job = Job(
+        job_uuid=str(uuid4()),
+        type="restore",
+        status="Running",
+        started_at=datetime.utcnow(),
+        output_message="Restore job started...",
+        restore_id=restore_id
+    )
+    db.session.add(job)
+    db.session.commit()
+
+    xva_path = f"/var/run/sr-mount/{sr_uuid}/xcp-backups/{vm_uuid}/{job_uuid}.xva"
 
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(host_ip, username=username, password=password)
 
-        import_cmd = (
+        command = (
             f"xe vm-import filename={xva_path} "
-            f"sr-uuid={sr_uuid} preserve=true"
+            f"sr-uuid={sr_uuid} preserve={preserve}"
         )
 
-        stdin, stdout, stderr = ssh.exec_command(import_cmd)
-        stdout_result = stdout.read().decode()
-        stderr_result = stderr.read().decode()
+        stdin, stdout, stderr = ssh.exec_command(command)
+        stdout_result = stdout.read().decode().strip()
+        stderr_result = stderr.read().decode().strip()
         ssh.close()
+
+        job.completed_at = datetime.utcnow()
+        job.output_message = stdout_result if not stderr_result else stderr_result
+        job.status = "Success" if not stderr_result else "Failed"
+        db.session.commit()
 
         if stderr_result:
             return jsonify({
                 "status": "error",
-                "message": f"Restore failed: {stderr_result.strip()}"
+                "message": f"Restore failed: {stderr_result}",
+                "job_id": job.id,
+                "job_status": job.status,
+                "output": job.output_message
             }), 500
 
         return jsonify({
             "status": "success",
             "message": "VM restore completed successfully.",
-            "output": stdout_result.strip()
+            "job_id": job.id,
+            "job_status": job.status,
+            "output": job.output_message
         }), 200
 
     except Exception as e:
+        job.completed_at = datetime.utcnow()
+        job.status = "Failed"
+        job.output_message = str(e)
+        db.session.commit()
+
         return jsonify({
             "status": "error",
-            "message": f"Restore operation failed: {str(e)}"
+            "message": "Restore operation failed due to exception.",
+            "job_id": job.id,
+            "job_status": job.status,
+            "output": job.output_message
         }), 500
 
 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-        
+
 # @xapi_bp.route("/xapi/backup_vm_stream", methods=["POST"])
 # def backup_vm_stream():
 #     data = request.get_json()

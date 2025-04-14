@@ -18,6 +18,22 @@ export async function get_backup_jobs_by_id(backup_id) {
     }
 }
 
+export async function get_restore_jobs_by_id(restore_id) {
+    try {
+        const response = await axios.get(`${BASE_URL}/api/job/list/restore/${restore_id}`)
+        return {
+            success: true,
+            data: response.data
+        }
+    } catch (error) {
+        console.error('Failed to add new host connection:', error)
+        return {
+            success: false,
+            error: error.response?.data || error.message
+        }
+    }
+}
+
 
 export async function runBackupJob({
     host_ip,
@@ -41,6 +57,42 @@ export async function runBackupJob({
             status: job_status,
             output,
             backup_path
+        }
+    } catch (error) {
+        return {
+            success: false,
+            message: error.response?.data?.message || 'Backup failed',
+            output: error.response?.data?.output || '',
+            job_id: error.response?.data?.job_id || null
+        }
+    }
+}
+
+export async function runRestoreJob({
+    host_ip,
+    sr_uuid,
+    job_uuid,
+    restore_id,
+    vm_uuid,
+    is_latest_backup
+}) {
+    try {
+        const response = await axios.post(`${BASE_URL}/api/xapi/restore`, {
+            host_ip,
+            sr_uuid,
+            job_uuid,
+            restore_id,
+            vm_uuid,
+            is_latest_backup
+        })
+
+        const { job_id, job_status, output, backup_path } = response.data
+
+        return {
+            success: true,
+            job_id,
+            status: job_status,
+            output
         }
     } catch (error) {
         return {

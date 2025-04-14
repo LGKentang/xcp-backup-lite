@@ -34,6 +34,35 @@ def list_backup_jobs_by_id(backup_id):
         return jsonify({'error': str(e)}), 500
 
 
+@job_bp.route('/job/list/restore/<restore_id>', methods=['GET'])
+def list_restore_jobs_by_id(restore_id):
+    try:
+        jobs = Job.query.filter_by(type='restore', restore_id=restore_id).all()
+
+        job_list = [
+            {
+                'id': job.id,
+                'uuid': job.job_uuid,
+                'type': job.type,
+                'status': job.status,
+                'restore_id': job.restore_id,
+                'started_at': job.started_at.isoformat() if job.started_at else None,
+                'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+                'output_message': job.output_message
+            }
+            for job in jobs
+        ]
+
+        return jsonify({
+            'message': f'Found {len(job_list)} job(s) for restore_id: {restore_id}',
+            'jobs': job_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
 @job_bp.route('/job/add', methods=['POST'])
 def add_job():
     data = request.get_json()

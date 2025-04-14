@@ -3,6 +3,7 @@ import Host from './views/settings/host/host'
 import Backup from './views/main/backup/backup'
 import Restore from './views/main/restore/restore'
 import BackupJob from './views/main/backup/backup-job'
+import RestoreJob from './views/main/restore/restore-job'
 
 const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 const Colors = React.lazy(() => import('./views/theme/colors/Colors'))
@@ -105,6 +106,8 @@ const routes = [
 
   { path: '/main/backup', name: 'Backup', element: Backup},
   { path: '/main/backup/:backup_id', name: 'Backup Details', element : BackupJob},
+  { path: '/main/restore/:restore_id', name: 'Restore Details', element : RestoreJob},
+
 
   { path: '/main/restore', name: 'Restore', element: Restore}
 ]

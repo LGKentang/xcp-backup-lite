@@ -15,6 +15,31 @@ export async function fetch_backups() {
     }
 }
 
+export async function fetch_backups_by_host(host_ip) {
+  try {
+      console.log('Using backend API:', BASE_URL)
+      const response = await axios.get(`${BASE_URL}/api/backup/list?host_ip=${host_ip}`)
+      console.log('Fetched hosts:', response)
+      return response.data
+  } catch (error) {
+      console.error('Failed to fetch hosts:', error)
+      return []
+  }
+}
+
+export async function fetch_backup_versions_by_backup_id(backup_id){
+  try {
+    console.log('Using backend API:', BASE_URL)
+    const response = await axios.get(`${BASE_URL}/api/backup/list/active/${backup_id}`)
+    console.log('Fetched hosts:', response)
+    return response.data
+} catch (error) {
+    console.error('Failed to fetch hosts:', error)
+    return []
+}
+}
+
+
 export async function fetch_backup_by_id(backup_id) {
   try {
       console.log('Using backend API:', BASE_URL)

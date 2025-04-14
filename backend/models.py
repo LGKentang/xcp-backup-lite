@@ -19,7 +19,6 @@ class Host(db.Model):
 
     backup_jobs = db.relationship('Backup', backref='host', lazy=True)
 
-
 class Backup(db.Model):
     __tablename__ = 'backups'
 
@@ -44,7 +43,9 @@ class Restore(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     sr_uuid = db.Column(db.String(64), nullable=False)
-    preserve = db.Column(db.Boolean, default=True)
+    host_ip = db.Column(db.String(64), nullable=False)
+    preserve = db.Column(db.Boolean, default=False)
+    power_on_after_restore = db.Column(db.Boolean, default=True)
     
     backup_id = db.Column(db.Integer, db.ForeignKey('backups.id'), nullable=True)
     restored_at = db.Column(db.DateTime, default=datetime.utcnow)

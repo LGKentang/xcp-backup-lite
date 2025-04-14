@@ -7,6 +7,7 @@ from routes.settings.storage import storage_bp
 from routes.settings.vm import vm_bp
 from routes.backup import backup_bp
 from routes.settings.job import job_bp
+from routes.restore import restore_bp
 import dotenv, os
 
 def create_app():
@@ -28,6 +29,8 @@ def create_app():
     app.register_blueprint(vm_bp, url_prefix="/api")
     app.register_blueprint(backup_bp, url_prefix="/api")
     app.register_blueprint(job_bp, url_prefix="/api")
+    app.register_blueprint(restore_bp, url_prefix="/api")
+    
     
     CORS(app, resources={r"/api/*": {"origins": cors_origin}})
 
@@ -38,4 +41,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', threaded=True)
