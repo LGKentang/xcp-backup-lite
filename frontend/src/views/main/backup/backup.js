@@ -21,6 +21,7 @@ import { cilTrash, cilPlus, cilPencil, cilMediaPlay } from '@coreui/icons';
 import BackupModal from './backup-modal.js';
 import { add_backup, fetch_backups } from '../../../api/backup/backup_api.js';
 import { useNavigate } from 'react-router-dom';
+import { runBackupJob } from '../../../api/jobs/jobs.js';
 
 const Backup = () => {
   const [backups, setBackups] = useState([]);
@@ -55,20 +56,34 @@ const Backup = () => {
     handleFetchBackup();
   }, []);
 
-  const handleRun = (backupObject) => {
-    console.log('Running backup:', backupObject);
-    // TODO: Run logic
+  const handleRunBackup = async (backup, setRunningJob) => {
+    setRunningJob(true);
+    try {
+      const result = await runBackupJob({
+        host_ip: backup.host_ip,
+        vm_uuid: backup.vm_uuid,
+        sr_uuid: backup.sr_uuid,
+        backup_id: parseInt(backup.id),
+      });
+    } catch (err) {
+      alert(`❌ Unexpected error: ${err.message}`);
+    } finally {
+      setRunningJob(false);
+    }
   };
 
   const handleEdit = (backupObject) => {
     console.log('Editing backup:', backupObject);
-    // TODO: Edit logic
+    navigate(`/main/backup/${backupObject.id}`)
   };
 
   const handleDelete = (backupObject) => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete the backup: ${backupObject.name || 'this item'}?`);
+    if (!confirmDelete) return;
+
     console.log('Deleting backup:', backupObject);
-    // TODO: Delete logic
   };
+
 
   const handleSaveBackup = (newBackup) => {
     setBackups((prevBackups) => [
@@ -136,43 +151,34 @@ const Backup = () => {
                               {backup.active ? 'Active' : 'Inactive'}
                             </CBadge>
                           </CTableDataCell>
-                          <CTableDataCell className="d-flex justify-content-end gap-2">
-                            <CButton
-                              title="Run Backup Once"
-                              color="success"
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRun(backup);
-                              }}
-                            >
-                              <CIcon icon={cilMediaPlay} />
-                            </CButton>
-                            <CButton
-                              title="Edit Backup"
-                              color="secondary"
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(backup);
-                              }}
-                            >
-                              <CIcon icon={cilPencil} />
-                            </CButton>
-                            <CButton
-                              title="Delete Backup"
-                              color="danger"
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(backup);
-                              }}
-                            >
-                              <CIcon icon={cilTrash} />
-                            </CButton>
+                          <CTableDataCell>
+                            <div style={{ display: 'flex', gap: '.5rem' }}>
+                              <RunningJobButton backup={backup} handleRunBackup={handleRunBackup}/>
+                              <CButton
+                                title="Edit Backup"
+                                color="secondary"
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(backup);
+                                }}
+                              >
+                                <CIcon icon={cilPencil} />
+                              </CButton>
+                              <CButton
+                                title="Delete Backup"
+                                color="danger"
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(backup);
+                                }}
+                              >
+                                <CIcon icon={cilTrash} />
+                              </CButton>
+                            </div>
                           </CTableDataCell>
                         </CTableRow>
                       ))}
@@ -189,3 +195,18 @@ const Backup = () => {
 };
 
 export default Backup;
+
+
+const RunningJobButton = ({ handleRunBackup, backup }) => {
+  const [runningJob, setRunningJob] = useState(false);
+  return <>
+    <CButton title="Run Backup Once" color="success" variant="outline" size="sm"
+      onClick={(e) => {
+        e.stopPropagation();
+        handleRunBackup(backup, setRunningJob);
+      }} disabled={runningJob}>
+      {runningJob ? <CSpinner size="sm" /> : <CIcon icon={cilMediaPlay} />}
+    </CButton>
+  </>
+}
+

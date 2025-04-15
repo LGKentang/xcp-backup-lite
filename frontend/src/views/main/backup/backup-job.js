@@ -16,12 +16,15 @@ import {
 } from '@coreui/react';
 import { cilMediaPlay, cilPencil, cilTrash } from '@coreui/icons';
 import CIcon from '@coreui/icons-react';
-import { fetch_backup_by_id } from '../../../api/backup/backup_api';
+import { fetch_backup_by_id, update_backup } from '../../../api/backup/backup_api';
 import { get_backup_jobs_by_id, runBackupJob } from '../../../api/jobs/jobs';
+// import { update_backup_by_id } from '../../../api/backup/backup_api';
 
 const BackupJob = () => {
   const { backup_id } = useParams();
   const [backup, setBackup] = useState(null);
+  const [formData, setFormData] = useState({});
+  const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -37,29 +40,33 @@ const BackupJob = () => {
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [backupData, jobData] = await Promise.all([
-          fetch_backup_by_id(backup_id),
-          get_backup_jobs_by_id(backup_id),
-        ]);
+  const fetchData = async () => {
+    try {
+      const [backupData, jobData] = await Promise.all([
+        fetch_backup_by_id(backup_id),
+        get_backup_jobs_by_id(backup_id),
+      ]);
+      setBackup(backupData);
+      setFormData(backupData);
+      if (jobData.success) setJobs(jobData.data.jobs);
+      else console.error(jobData.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setBackup(backupData);
-        if (jobData.success) setJobs(jobData.data.jobs);
-        else console.error(jobData.message);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  useEffect(() => {
     fetchData();
   }, [backup_id]);
 
   const handleRunBackup = async () => {
     setRunningJob(true);
     try {
+      [1000, 3000].forEach(delay => {
+        setTimeout(() => fetchData(), delay);
+      });
       const result = await runBackupJob({
         host_ip: backup.host_ip,
         vm_uuid: backup.vm_uuid,
@@ -71,6 +78,28 @@ const BackupJob = () => {
       alert(`❌ Unexpected error: ${err.message}`);
     } finally {
       setRunningJob(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      // Only include fields that are editable
+      const editableFields = ['name', 'description', 'cron_schedule', 'retention', 'active'];
+      const updatedFields = {};
+      editableFields.forEach((key) => {
+        if (formData[key] !== backup[key]) {
+          updatedFields[key] = formData[key];
+        }
+      });
+
+      const response = await update_backup(backup_id, updatedFields, fetchData);
+      if (response.success) {
+        setEditMode(false);
+      } else {
+        alert(`❌ Failed to update backup: ${response.error}`);
+      }
+    } catch (err) {
+      alert(`❌ Unexpected error: ${err.message}`);
     }
   };
 
@@ -92,9 +121,25 @@ const BackupJob = () => {
             <CButton title="Run Backup Once" color="success" variant="outline" size="sm" onClick={handleRunBackup} disabled={runningJob}>
               {runningJob ? <CSpinner size="sm" /> : <CIcon icon={cilMediaPlay} />}
             </CButton>
-            <CButton title="Edit Backup" color="secondary" variant="outline" size="sm">
-              <CIcon icon={cilPencil} />
-            </CButton>
+
+            {editMode ? (
+              <>
+                <CButton title="Save" color="primary" variant="outline" size="sm" onClick={handleSave}>
+                  Save
+                </CButton>
+                <CButton title="Cancel" color="secondary" variant="outline" size="sm" onClick={() => {
+                  setFormData(backup);
+                  setEditMode(false);
+                }}>
+                  Cancel
+                </CButton>
+              </>
+            ) : (
+              <CButton title="Edit Backup" color="secondary" variant="outline" size="sm" onClick={() => setEditMode(true)}>
+                <CIcon icon={cilPencil} />
+              </CButton>
+            )}
+
             <CButton title="Delete Backup" color="danger" variant="outline" size="sm">
               <CIcon icon={cilTrash} />
             </CButton>
@@ -103,20 +148,56 @@ const BackupJob = () => {
 
         <CCardBody>
           {[
-            ['Description', backup.description],
-            ['VM', `${backup.vm_name} (${backup.vm_uuid})`],
-            ['SR', `${backup.sr_name} (${backup.sr_uuid})`],
-            ['Host IP', backup.host_ip],
-            ['Schedule', <code>{backup.cron_schedule}</code>],
-            ['Retention', `${backup.retention} copies`],
-            ['Active', <CBadge color={backup.active ? 'success' : 'secondary'}>{backup.active ? 'Yes' : 'No'}</CBadge>],
-            ['Created At', new Date(backup.created_at).toLocaleString()],
-          ].map(([label, value]) => (
-            <CRow className="mb-2" key={label}>
-              <CCol md={3}><strong>{label}</strong></CCol>
-              <CCol>{value}</CCol>
-            </CRow>
-          ))}
+            ['Name', 'name'],
+            ['Description', 'description'],
+            ['VM', 'vm_name'],
+            ['SR', 'sr_name'],
+            ['Host IP', 'host_ip'],
+            ['Schedule', 'cron_schedule'],
+            ['Retention', 'retention'],
+            ['Active', 'active'],
+          ].map(([label, key]) => {
+            const isEditable = !['vm_name', 'sr_name', 'host_ip'].includes(key);
+
+            return (
+              <CRow className="mb-2" key={key}>
+                <CCol md={3}><strong>{label}</strong></CCol>
+                <CCol>
+                  {editMode && isEditable ? (
+                    key === 'active' ? (
+                      <select
+                        className="form-select"
+                        value={formData[key] ? 'true' : 'false'}
+                        onChange={(e) =>
+                          setFormData({ ...formData, [key]: e.target.value === 'true' })
+                        }
+                      >
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    ) : (
+                      <input
+                        className="form-control"
+                        value={formData[key] || ''}
+                        onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                      />
+                    )
+                  ) : key === 'active' ? (
+                    <CBadge color={backup[key] ? 'success' : 'secondary'}>
+                      {backup[key] ? 'Yes' : 'No'}
+                    </CBadge>
+                  ) : (
+                    backup[key]
+                  )}
+                </CCol>
+              </CRow>
+            );
+          })}
+
+          <CRow className="mb-2">
+            <CCol md={3}><strong>Created At</strong></CCol>
+            <CCol>{new Date(backup.created_at).toLocaleString()}</CCol>
+          </CRow>
         </CCardBody>
       </CCard>
 
@@ -138,7 +219,7 @@ const BackupJob = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {jobs.map((job) => {
+                {[...jobs].reverse().map((job) => {
                     const started = new Date(job.started_at);
                     const ended = job.completed_at ? new Date(job.completed_at) : null;
                     const duration = ended ? formatDuration(ended - started) : '-';

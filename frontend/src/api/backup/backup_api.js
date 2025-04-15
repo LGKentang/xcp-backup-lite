@@ -89,6 +89,25 @@ export async function add_backup({
   }
 }
 
+
+export async function update_backup(backupId, updatedFields, handleUpdate) {
+  try {
+      const response = await axios.patch(`${BASE_URL}/api/backup/update/${backupId}`, updatedFields)
+      await handleUpdate()
+      return {
+          success: true,
+          data: response.data
+      }
+  } catch (error) {
+      console.error(`Failed to update backup with ID ${hostId}:`, error)
+      await handleUpdate()
+      return {
+          success: false,
+          error: error.response?.data || error.message
+      }
+  }
+}
+
 export async function delete_backup(backup_id) {
   try {
       console.log('Using backend API:', BASE_URL)

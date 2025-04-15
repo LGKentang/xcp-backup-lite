@@ -62,3 +62,22 @@ export async function add_restore({
       return []; 
     }
   }
+  
+  export async function update_restore_by_id(restoreId, updatedFields, handleUpdate) {
+    try {
+        const response = await axios.patch(`${BASE_URL}/api/restore/update/${restoreId}`, updatedFields)
+        await handleUpdate()
+        return {
+            success: true,
+            data: response.data
+        }
+    } catch (error) {
+        console.error(`Failed to update restore with ID ${hostId}:`, error)
+        await handleUpdate()
+        return {
+            success: false,
+            error: error.response?.data || error.message
+        }
+    }
+  }
+  

@@ -74,19 +74,24 @@ export async function runRestoreJob({
     job_uuid,
     restore_id,
     vm_uuid,
+    backup_id,
     is_latest_backup
 }) {
     try {
-        const response = await axios.post(`${BASE_URL}/api/xapi/restore`, {
+        const payload = {
             host_ip,
             sr_uuid,
             job_uuid,
             restore_id,
-            vm_uuid,
+            vm_uuid: vm_uuid || "0",
+            backup_id,
             is_latest_backup
-        })
+        }
+        console.log(payload)
+        const response = await axios.post(`${BASE_URL}/api/xapi/restore`, payload)
+        console.log(response)
 
-        const { job_id, job_status, output, backup_path } = response.data
+        const { job_id, job_status, output } = response.data
 
         return {
             success: true,

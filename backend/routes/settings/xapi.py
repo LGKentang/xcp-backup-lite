@@ -6,7 +6,7 @@ import re
 import paramiko
 from datetime import datetime
 from flask import Blueprint, request, jsonify
-from models import Host, Job, Restore
+from models import Backup, Host, Job, Restore
 from models import db
 
 
@@ -156,20 +156,51 @@ def restore_vm():
     sr_uuid = data.get("sr_uuid")
     restore_id = data.get("restore_id")
     job_uuid = data.get("job_uuid")
-    vm_uuid = data.get("vm_uuid")
+    backup_id = data.get("backup_id")
+    vm_uuid = data.get("vm_uuid", 0)
     is_latest_backup = data.get("is_latest_backup", True)
 
-    if not all([host_ip, sr_uuid, job_uuid]):
+    if not all([host_ip, sr_uuid, restore_id]):
         return jsonify({
             "status": "error",
             "message": "Missing one or more required fields: host_ip, sr_uuid, job_uuid"
+        }), 400
+    
+    if not is_latest_backup and not restore_id:
+        return jsonify({
+            "status": "error",
+            "message": "If you are not using the latest backup, you must provide a restore_id."
         }), 400
 
     host = Host.query.filter_by(host_ip=host_ip).first()
     if not host:
         return jsonify({"status": "error", "message": f"No host found with IP {host_ip}"}), 404
 
-    preserve = db.session.query(Restore).with_entities(Restore.preserve).filter_by(id=restore_id).scalar()
+    if is_latest_backup:
+        latest_backup_job = Job.query.filter_by(type="backup", backup_id=backup_id).order_by(Job.id.desc()).first()
+        print(latest_backup_job.restore)
+
+        if not latest_backup_job:
+            return jsonify({
+                "status": "error",
+                "message": "No backup jobs found for the specified backup ID."
+            }), 404
+
+        if not latest_backup_job.backup:
+            return jsonify({
+                "status": "error",
+                "message": "No backup job found for the latest backup job."
+            }), 404
+
+        vm_uuid = latest_backup_job.backup.vm_uuid
+        job_uuid = latest_backup_job.job_uuid
+
+    preserve = db.session.query(Restore.preserve).filter_by(id=restore_id).scalar()
+    if preserve is None:
+        return jsonify({
+            "status": "error",
+            "message": "No restore entry found for the given restore_id."
+        }), 404
 
     username = host.username
     password = host.password
@@ -237,7 +268,6 @@ def restore_vm():
             "job_status": job.status,
             "output": job.output_message
         }), 500
-
 
 
 # @xapi_bp.route("/xapi/backup_vm_stream", methods=["POST"])

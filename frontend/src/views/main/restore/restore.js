@@ -6,9 +6,10 @@ import {
 } from '@coreui/react'
 import { Link } from 'react-router-dom'
 import { get_all_restores } from '../../../api/restore/restore_api'
-import { cilPlus, cilRecycle } from '@coreui/icons'
+import { cilPencil, cilPlus, cilRecycle, cilTrash } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 import RestoreModal from './restore-modal'
+import { useNavigate } from 'react-router-dom';
 
 const Restore = () => {
   const [restores, setRestores] = useState([])
@@ -18,6 +19,7 @@ const Restore = () => {
 
   const handleModalClose = () => setModalVisible(false);
   const handleModalOpen = () => setModalVisible(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchRestores = async () => {
@@ -47,6 +49,7 @@ const Restore = () => {
 
   return (
     <>
+
       <div className="d-flex justify-content-end mb-4">
         <CButton color="primary" variant="outline" onClick={handleModalOpen}>
           <CIcon icon={cilPlus} /> Add Restore Plan
@@ -78,21 +81,54 @@ const Restore = () => {
                   <CTableRow>
                     <CTableHeaderCell>ID</CTableHeaderCell>
                     <CTableHeaderCell>Backup</CTableHeaderCell>
+                    <CTableHeaderCell>VM Name</CTableHeaderCell>
                     <CTableHeaderCell>To SR</CTableHeaderCell>
-                    <CTableHeaderCell>Actions</CTableHeaderCell>
+                    <CTableHeaderCell></CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {restores.map((job) => (
-                    <CTableRow key={job.id}>
-                      <CTableDataCell><strong>{job.id}</strong></CTableDataCell>
-                      <CTableDataCell>{job.backup_name}</CTableDataCell>
-                      <CTableDataCell>{job.sr_name}</CTableDataCell>
+                  {restores.map((restore) => (
+                    <CTableRow
+                      key={restore.id}
+                      onClick={() => navigate(`/main/restore/${restore.id}`)}
+                    >
+                      <CTableDataCell><strong>{restore.id}</strong></CTableDataCell>
+                      <CTableDataCell>{restore.backup_name}</CTableDataCell>
+                      <CTableDataCell>{restore.vm_name}</CTableDataCell>
+                      <CTableDataCell>{restore.sr_name}</CTableDataCell>
                       <CTableDataCell>
-                        <CButton color="primary" size="sm" title="Restore Again">
-                          <CIcon icon={cilRecycle} />
-                        </CButton>
+                        <div className="d-flex gap-2">
+                          <CButton color="primary" size="sm" title="Restore Again">
+                            <CIcon icon={cilRecycle} />
+                          </CButton>
+                          <CButton
+                            title="Edit Backup"
+                            color="secondary"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(backup);
+                            }}
+                          >
+                            <CIcon icon={cilPencil} />
+                          </CButton>
+                          <CButton
+                            title="Delete Backup"
+                            color="danger"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(backup);
+                            }}
+                          >
+                            <CIcon icon={cilTrash} />
+                          </CButton>
+                        </div>
                       </CTableDataCell>
+
+
                     </CTableRow>
                   ))}
                 </CTableBody>

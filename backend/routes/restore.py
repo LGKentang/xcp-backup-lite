@@ -5,6 +5,7 @@ from pytz import timezone
 WIB = timezone('Asia/Jakarta')
 restore_bp = Blueprint("restore_bp", __name__)
 
+
 @restore_bp.route('/restore/add', methods=['POST'])
 def add_restore():
     data = request.json
@@ -38,6 +39,7 @@ def list_restore():
             'preserve': r.preserve,
             'power_on_after_restore': r.power_on_after_restore,
             'backup_id': r.backup_id,
+            'vm_name': r.backup.vm_name,
             'backup_name': r.backup.name if r.backup else None,
             'sr_name': r.backup.sr_name if r.backup else None,
             'restored_at': r.restored_at.astimezone(WIB).isoformat() if r.restored_at else None
@@ -59,6 +61,7 @@ def list_restore_by_id(restore_id):
         'host_ip': restore.host_ip,
         'preserve': restore.preserve,
         'power_on_after_restore': restore.power_on_after_restore,
+        'vm_name': restore.backup.vm_name,
         'backup_id': restore.backup_id,
         'backup_name': restore.backup.name if restore.backup else None,
         'sr_name': restore.backup.sr_name if restore.backup else None,
@@ -71,7 +74,7 @@ def update_restore(restore_id):
     restore = Restore.query.get_or_404(restore_id)
     data = request.json
 
-    for field in ['sr_uuid', 'preserve', 'backup_id']:
+    for field in ['preserve','power_on_after_restore']:
         if field in data:
             setattr(restore, field, data[field])
 

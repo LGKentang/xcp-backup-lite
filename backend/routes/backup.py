@@ -127,7 +127,7 @@ def update_backup(backup_id):
     backup = Backup.query.get_or_404(backup_id)
     data = request.json
 
-    for field in ['backup_name', 'backup_description', 'sr_uuid', 'active', 'retention', 'cron_schedule']:
+    for field in ['name', 'description', 'active', 'retention', 'cron_schedule']:
         if field in data:
             setattr(backup, field, data[field])
 

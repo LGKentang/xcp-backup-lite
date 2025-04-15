@@ -246,7 +246,7 @@ const RestoreModal = ({ visible, onClose, onSave }) => {
       </CModalBody>
       <CModalFooter>
         <CButton color="secondary" onClick={onClose}>Cancel</CButton>
-        <CButton color="primary" onClick={handleRestore}>Restore</CButton>
+        <CButton color="primary" onClick={handleRestore}>Save Restore Plan</CButton>
       </CModalFooter>
     </CModal>
   );

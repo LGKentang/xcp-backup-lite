@@ -104,7 +104,6 @@ const HostTable = () => {
                                     <CTableHeaderCell>Username</CTableHeaderCell>
                                     <CTableHeaderCell>Password</CTableHeaderCell>
                                     <CTableHeaderCell>Status</CTableHeaderCell>
-                                    {/*  */}
                                     <CTableHeaderCell></CTableHeaderCell>
                                 </CTableRow>
                             </CTableHead>
